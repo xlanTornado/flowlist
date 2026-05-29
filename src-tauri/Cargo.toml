@@ -1,6 +1,6 @@
 [package]
 name = "flowlist"
-version = "0.2.0-beta"
+version = "0.2.0"
 description = "A lightweight, offline, beautiful Windows todo list app"
 authors = ["FlowList Team"]
 edition = "2021"

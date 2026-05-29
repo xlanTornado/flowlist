@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useStore } from "@/stores/useStore";
 import { toggleTheme } from "@/hooks/useTheme";
 import StatsPanel from "./StatsPanel";
-import { Plus, Trash2, Sun, Calendar, Search, Moon, BarChart3, Download, Upload, CheckCheck } from "lucide-react";
+import { Plus, Trash2, Sun, Calendar, Search, Moon, BarChart3, Download, Upload, CheckCheck, FileText, Image } from "lucide-react";
 import { getAllTasks, getLists as dbGetLists, getTags as dbGetTags } from "@/lib/db";
+import { toPng } from "html-to-image";
 
 const LIST_COLORS = ["#6366f1", "#ef4444", "#f97316", "#f59e0b", "#22c55e", "#06b6d4", "#ec4899", "#8b5cf6"];
 
@@ -16,6 +17,7 @@ export default function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [showStats, setShowStats] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const editRef = useRef<HTMLInputElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -40,6 +42,59 @@ export default function Sidebar() {
       await updateListName(id, editName.trim());
     }
     setEditingId(null);
+  };
+
+  const handleTxtExport = async () => {
+    try {
+      const lists = await dbGetLists();
+      const tasks = await getAllTasks();
+      const { getSubtasks } = await import("@/lib/db");
+      let txt = "FlowList 任务清单\n" + "=".repeat(40) + "\n\n";
+      for (const list of lists) {
+        const listTasks = tasks.filter((t) => t.list_id === list.id);
+        txt += `## ${list.name}\n\n`;
+        for (const task of listTasks) {
+          const status = task.is_completed ? "[x]" : "[ ]";
+          const pri = ["", "!!", "!", "", ""][task.priority];
+          txt += `${status} ${pri} ${task.title}\n`;
+          const subs = await getSubtasks(task.id);
+          for (const sub of subs) {
+            const s = sub.is_completed ? "[x]" : "[ ]";
+            txt += `    ${s} ${sub.title}\n`;
+          }
+          txt += "\n";
+        }
+      }
+      downloadFile(txt, `flowlist-${new Date().toISOString().slice(0, 10)}.txt`, "text/plain");
+    } catch (e) {
+      alert("导出 TXT 失败：" + (e instanceof Error ? e.message : String(e)));
+    }
+    setShowExportMenu(false);
+  };
+
+  const handleImageExport = async () => {
+    try {
+      const el = document.querySelector("[data-task-list]");
+      if (!el) { alert("未找到任务列表"); return; }
+      const dataUrl = await toPng(el as HTMLElement, { backgroundColor: "#ffffff" });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `flowlist-${new Date().toISOString().slice(0, 10)}.png`;
+      a.click();
+    } catch (e) {
+      alert("导出图片失败：" + (e instanceof Error ? e.message : String(e)));
+    }
+    setShowExportMenu(false);
+  };
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleExport = async () => {
@@ -277,13 +332,29 @@ export default function Sidebar() {
             >
               <BarChart3 className="h-3.5 w-3.5" />
             </button>
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-1 rounded p-1 text-xs text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-              title="导出"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-1 rounded p-1 text-xs text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                title="导出"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </button>
+              {showExportMenu && (
+                <div className="absolute bottom-full left-0 z-20 mb-1 w-32 rounded-lg border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <button onClick={handleTxtExport} className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                    <FileText className="h-3.5 w-3.5" /> TXT 文本
+                  </button>
+                  <button onClick={handleImageExport} className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                    <Image className="h-3.5 w-3.5" /> PNG 图片
+                  </button>
+                  <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+                  <button onClick={() => { handleExport(); setShowExportMenu(false); }} className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    JSON 备份
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={handleImport}
               className="flex items-center gap-1 rounded p-1 text-xs text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
@@ -293,7 +364,7 @@ export default function Sidebar() {
             </button>
             <span className="ml-auto flex items-center gap-1 text-xs text-gray-400">
               <CheckCheck className="h-3.5 w-3.5" />
-              v1.0
+              v0.2
             </span>
           </div>
         </div>

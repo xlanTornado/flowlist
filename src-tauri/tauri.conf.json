@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-utils/schema/config.schema.json",
   "productName": "FlowList",
-  "version": "0.2.0-beta",
+  "version": "0.2.0",
   "identifier": "com.flowlist.app",
   "build": {
     "frontendDist": "../dist",

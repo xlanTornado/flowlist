@@ -46,7 +46,7 @@ export default function TaskList() {
   };
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-r border-gray-200 dark:border-gray-800">
+    <div className="flex h-full w-80 shrink-0 flex-col border-r border-gray-200 dark:border-gray-800" data-task-list>
       <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
         <ViewIcon />
         <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{viewTitle()}</h2>
