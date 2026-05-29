@@ -19,19 +19,21 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install frontend deps
+      - name: Install deps
         run: bun install
 
       - name: Build
         run: bun run tauri build
 
       - name: Upload portable exe
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: FlowList-portable
           path: src-tauri/target/release/flowlist.exe
 
       - name: Upload MSI installer
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: FlowList-msi
