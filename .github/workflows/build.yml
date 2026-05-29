@@ -7,12 +7,12 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
-    outputs:
-      portable: ${{ steps.vars.outputs.portable }}
-      msi: ${{ steps.vars.outputs.msi }}
 
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +22,9 @@ jobs:
           bun-version: latest
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
 
       - name: Install deps
         run: bun install
@@ -30,27 +32,17 @@ jobs:
       - name: Build
         run: bun run tauri build
 
-      - name: Set artifact paths
-        id: vars
-        shell: pwsh
-        run: |
-          $portable = Get-ChildItem -Path src-tauri/target/release -Filter flowlist.exe | Select-Object -First 1
-          $msi = Get-ChildItem -Path src-tauri/target/release/bundle/msi -Filter *.msi | Select-Object -First 1
-          "portable=$($portable.FullName)" >> $env:GITHUB_OUTPUT
-          "msi=$($msi.FullName)" >> $env:GITHUB_OUTPUT
-          "msi_name=$($msi.Name)" >> $env:GITHUB_OUTPUT
-
       - name: Upload portable exe
         uses: actions/upload-artifact@v4
         with:
           name: FlowList-portable
-          path: ${{ steps.vars.outputs.portable }}
+          path: src-tauri/target/release/flowlist.exe
 
       - name: Upload MSI installer
         uses: actions/upload-artifact@v4
         with:
           name: FlowList-msi
-          path: ${{ steps.vars.outputs.msi }}
+          path: src-tauri/target/release/bundle/msi/*.msi
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
