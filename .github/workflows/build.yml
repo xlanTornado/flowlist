@@ -1,0 +1,47 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend deps
+        run: bun install
+
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: FlowList v__VERSION__
+          releaseDraft: true
+          prerelease: false
+
+      - name: Upload portable exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowList-portable
+          path: src-tauri/target/release/flowlist.exe
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowList-msi
+          path: src-tauri/target/release/bundle/msi/*.msi

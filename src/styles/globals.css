@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-p1: #ef4444;
+  --color-p2: #f97316;
+  --color-p3: #3b82f6;
+  --color-p4: #9ca3af;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+}
