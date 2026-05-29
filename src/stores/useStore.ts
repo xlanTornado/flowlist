@@ -141,7 +141,9 @@ export const useStore = create<AppState>((set, get) => ({
     await db.toggleTaskComplete(id, completed);
     set((s) => ({
       tasks: s.tasks.map((t) =>
-        t.id === id ? { ...t, is_completed: completed ? 1 : 0 } : t
+        t.id === id
+          ? { ...t, is_completed: completed ? 1 : 0, completed_at: completed ? new Date().toISOString() : null }
+          : t
       ),
     }));
   },

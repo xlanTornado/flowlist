@@ -51,6 +51,12 @@ export async function updateList(id: string, data: Partial<Pick<List, "name" | "
 
 export async function deleteList(id: string): Promise<void> {
   const db = await getDb();
+  const tasks = await db.select<{ id: string }[]>("SELECT id FROM tasks WHERE list_id = $1", [id]);
+  for (const t of tasks) {
+    await db.execute("DELETE FROM task_tags WHERE task_id = $1", [t.id]);
+    await db.execute("DELETE FROM reminders WHERE task_id = $1", [t.id]);
+    await db.execute("DELETE FROM tasks WHERE parent_id = $1", [t.id]);
+  }
   await db.execute("DELETE FROM tasks WHERE list_id = $1", [id]);
   await db.execute("DELETE FROM lists WHERE id = $1", [id]);
 }
@@ -79,8 +85,8 @@ export async function createTask(
   const db = await getDb();
   const id = genId();
   const maxSort = await db.select<[{ max_order: number }]>(
-    "SELECT COALESCE(MAX(sort_order), -1) as max_order FROM tasks WHERE list_id = $1 AND parent_id IS NULL",
-    [listId]
+    "SELECT COALESCE(MAX(sort_order), -1) as max_order FROM tasks WHERE list_id = $1 AND (parent_id = $2 OR (parent_id IS NULL AND $2 IS NULL))",
+    [listId, parentId ?? null]
   );
   const sortOrder = (maxSort[0]?.max_order ?? -1) + 1;
   await db.execute(

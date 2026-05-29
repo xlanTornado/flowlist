@@ -6,7 +6,8 @@ pub fn run() {
   let migrations = vec![Migration {
     version: 1,
     description: "create initial tables",
-    sql: "CREATE TABLE IF NOT EXISTS lists (
+    sql: "PRAGMA foreign_keys = ON;
+    CREATE TABLE IF NOT EXISTS lists (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       color TEXT NOT NULL DEFAULT '#6366f1',
@@ -75,17 +76,18 @@ pub fn run() {
     .plugin(tauri_plugin_process::init())
     .setup(|app| {
       #[cfg(debug_assertions)]
-      {
-        let window = app.get_webview_window("main").unwrap();
+      if let Some(window) = app.get_webview_window("main") {
         window.open_devtools();
       }
 
-      let window = app.get_webview_window("main").unwrap();
-      window.on_window_event(|event| {
-        if let tauri::WindowEvent::CloseRequested { .. } = event {
-          std::process::exit(0);
-        }
-      });
+      if let Some(window) = app.get_webview_window("main") {
+        let app_handle = app.handle().clone();
+        window.on_window_event(move |event| {
+          if let tauri::WindowEvent::CloseRequested { .. } = event {
+            app_handle.exit(0);
+          }
+        });
+      }
 
       Ok(())
     })

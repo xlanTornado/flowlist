@@ -18,6 +18,7 @@ export default function Sidebar() {
   const [showStats, setShowStats] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const editRef = useRef<HTMLInputElement>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (showAdd && inputRef.current) inputRef.current.focus();
@@ -43,11 +44,17 @@ export default function Sidebar() {
 
   const handleExport = async () => {
     try {
-      const data = {
-        lists: await dbGetLists(),
-        tasks: await getAllTasks(),
-        tags: await dbGetTags(),
-      };
+      const { getSubtasks, getTaskTags } = await import("@/lib/db");
+      const lists = await dbGetLists();
+      const tasks = await getAllTasks();
+      const tags = await dbGetTags();
+      const tasksWithDetails = [];
+      for (const t of tasks) {
+        const subtasks = await getSubtasks(t.id);
+        const taskTags = await getTaskTags(t.id);
+        tasksWithDetails.push({ ...t, subtasks, tags: taskTags });
+      }
+      const data = { lists, tasks: tasksWithDetails, tags };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -55,7 +62,9 @@ export default function Sidebar() {
       a.download = `flowlist-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {}
+    } catch (e) {
+      alert("导出失败：" + (e instanceof Error ? e.message : String(e)));
+    }
   };
 
   const handleImport = async () => {
@@ -64,19 +73,52 @@ export default function Sidebar() {
       input.type = "file";
       input.accept = ".json";
       input.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-        const text = await file.text();
-        const data = JSON.parse(text);
-        if (data.lists) {
-          for (const list of data.lists) {
-            try { await addList(list.name, list.color); } catch {}
+        try {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) return;
+          const text = await file.text();
+          const data = JSON.parse(text);
+          const { createTask, addTaskTag } = await import("@/lib/db");
+
+          if (data.lists) {
+            for (const list of data.lists) {
+              try { await addList(list.name, list.color); } catch {}
+            }
           }
+          if (data.tags) {
+            for (const tag of data.tags) {
+              try { await useStore.getState().addTag(tag.name, tag.color); } catch {}
+            }
+          }
+          if (data.tasks) {
+            const refreshedLists = await dbGetLists();
+            const defaultListId = refreshedLists[0]?.id ?? "default";
+            for (const task of data.tasks) {
+              const taskListId = data.lists
+                ? (refreshedLists.find((l) => l.name === data.lists.find((dl: any) => dl.name === l.name)?.name)?.id ?? defaultListId)
+                : defaultListId;
+              try {
+                const newTask = await createTask(taskListId, task.title, task.priority ?? 4, null);
+                if (task.note) await (await import("@/lib/db")).updateTask(newTask.id, { note: task.note });
+                if (task.due_date) await (await import("@/lib/db")).updateTask(newTask.id, { due_date: task.due_date });
+                if (task.tags) {
+                  for (const tag of task.tags) {
+                    try { await addTaskTag(newTask.id, tag.id); } catch {}
+                  }
+                }
+              } catch {}
+            }
+          }
+          await loadLists();
+          if (selectedListId) await useStore.getState().loadTasks(selectedListId);
+        } catch (e) {
+          alert("导入失败：" + (e instanceof Error ? e.message : String(e)));
         }
-        await loadLists();
       };
       input.click();
-    } catch {}
+    } catch (e) {
+      alert("导入失败：" + (e instanceof Error ? e.message : String(e)));
+    }
   };
 
   return (
@@ -105,8 +147,10 @@ export default function Sidebar() {
               type="text"
               value={searchQuery}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
-                searchTasks(e.target.value);
+                clearTimeout(searchTimerRef.current);
+                const q = e.target.value;
+                setSearchQuery(q);
+                searchTimerRef.current = setTimeout(() => searchTasks(q), 300);
               }}
               placeholder="搜索任务..."
               className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"

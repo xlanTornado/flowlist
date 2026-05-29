@@ -3,14 +3,17 @@ import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { useStore } from "@/stores/useStore";
 
 export function useGlobalShortcuts() {
-  const { selectList, loadTodayTasks } = useStore();
+  const loadTodayTasks = useStore((s) => s.loadTodayTasks);
 
   useEffect(() => {
     const setupShortcuts = async () => {
       try {
         await register("Ctrl+Shift+N", () => {
-          const { addTask } = useStore.getState();
-          addTask("");
+          const el = document.querySelector<HTMLInputElement>('[placeholder="添加任务..."]');
+          if (el) {
+            el.focus();
+            el.scrollIntoView({ behavior: "smooth" });
+          }
         });
 
         await register("Ctrl+Shift+T", () => {
@@ -27,9 +30,7 @@ export function useGlobalShortcuts() {
       try {
         unregister("Ctrl+Shift+N");
         unregister("Ctrl+Shift+T");
-      } catch {
-        // Cleanup
-      }
+      } catch {}
     };
   }, []);
 }

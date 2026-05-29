@@ -77,7 +77,11 @@ export default function TaskDetail() {
       await addTaskTag(task.id, tagId);
     }
     const newTags = await getTaskTags(task.id);
-    updateTask(task.id, {});
+    useStore.setState((s) => ({
+      tasks: s.tasks.map((t) =>
+        t.id === task.id ? { ...t, tags: newTags } : t
+      ),
+    }));
   };
 
   const handleDeleteTask = () => {

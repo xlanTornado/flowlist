@@ -30,7 +30,7 @@ export function useReminders() {
           for (const minutes of [15, 60, 1440]) {
             const remindAt = new Date(dueDate.getTime() - minutes * 60 * 1000);
             if (now >= remindAt && now < new Date(remindAt.getTime() + 60000)) {
-              const key = `${task.id}-${minutes}`;
+              const key = `${task.id}-${minutes}-${task.due_date}`;
               if (!notifiedRef.current.has(key)) {
                 notifiedRef.current.add(key);
                 sendNotification({
