@@ -40,12 +40,5 @@
         "language": "zh-CN"
       }
     }
-  },
-  "plugins": {
-    "sql": {
-      "preload": {
-        "db": "sqlite:flowlist.db"
-      }
-    }
   }
 }
