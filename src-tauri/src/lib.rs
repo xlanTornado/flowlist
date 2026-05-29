@@ -1,5 +1,4 @@
 use tauri::Manager;
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -81,53 +80,10 @@ pub fn run() {
         window.open_devtools();
       }
 
-      let menu = tauri::menu::MenuBuilder::new(app)
-        .text("show", "显示主窗口")
-        .separator()
-        .text("quit", "退出")
-        .build()?;
-
-      let tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
-        .tooltip("FlowList")
-        .on_menu_event(|app, event| {
-          if event.id().as_ref() == "show" {
-            if let Some(window) = app.get_webview_window("main") {
-              let _ = window.show();
-              let _ = window.set_focus();
-            }
-          } else if event.id().as_ref() == "quit" {
-            app.exit(0);
-          }
-        })
-        .on_tray_icon_event(|tray, event| {
-          if let TrayIconEvent::Click {
-            button: MouseButton::Left,
-            button_state: MouseButtonState::Up,
-            ..
-          } = event
-          {
-            let app = tray.app_handle();
-            if let Some(window) = app.get_webview_window("main") {
-              let _ = window.show();
-              let _ = window.set_focus();
-            }
-          }
-        })
-        .menu(&menu)
-        .build(app)?;
-
-      #[cfg(target_os = "macos")]
-      tray.set_show_menu_on_left_click(false);
-
       let window = app.get_webview_window("main").unwrap();
-      let tray_clone = tray.clone();
-
-      window.on_window_event(move |event| {
+      window.on_window_event(|event| {
         if let tauri::WindowEvent::CloseRequested { .. } = event {
-          if let Some(w) = tray_clone.app_handle().get_webview_window("main") {
-            let _ = w.hide();
-          }
+          std::process::exit(0);
         }
       });
 
